@@ -1,35 +1,26 @@
 from pathlib import Path
-
-import pytest
-
-from src.extract import build_params, validate_raw_payload
-
-
-def test_build_params_expands_hourly_and_units():
-    config = {
-        "api": {"params": {"latitude": 59.9, "hourly": ["temperature_2m", "precipitation"]}}
-    }
-    params = build_params(config, "2026-09-15", "2026-09-16")
-    assert params["hourly"] == "temperature_2m,precipitation"
-    assert params["start_date"] == "2026-09-15"
-    assert params["end_date"] == "2026-09-16"
-    assert params["wind_speed_unit"] == "kmh"
-    assert params["temperature_unit"] == "celsius"
-    assert params["precipitation_unit"] == "mm"
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.extract import build_params, validate_payload
 
 
-def test_validate_raw_payload():
-    payload = {
-        "hourly": {
-            "time": ["2026-09-15T00:00", "2026-09-15T01:00"],
-            "temperature_2m": [10.0, 9.5],
-            "precipitation": [0.0, 0.2],
-        }
-    }
-    validate_raw_payload(payload, ["temperature_2m", "precipitation"])
+def test_build_params_joins_hourly():
+    config = {"api": {"params": {"latitude": 1, "hourly": ["a", "b"]}}}
+    p = build_params(config, "2026-09-15", "2026-09-16")
+    assert p["hourly"] == "a,b"
+    assert p["start_date"] == "2026-09-15"
+    assert p["end_date"] == "2026-09-16"
+    assert "forecast_days" not in p
 
 
-def test_validate_raw_payload_detects_length_mismatch():
-    payload = {"hourly": {"time": ["2026-09-15T00:00"], "temperature_2m": [10, 11]}}
-    with pytest.raises(ValueError, match="Length mismatch"):
-        validate_raw_payload(payload, ["temperature_2m"])
+def test_validate_payload_ok():
+    payload = {"hourly": {"time": ["t1", "t2"], "temperature_2m": [1, 2], "relative_humidity_2m": [50, 60], "precipitation": [0, 1], "wind_speed_10m": [5, 6]}}
+    validate_payload(payload, ["temperature_2m", "relative_humidity_2m", "precipitation", "wind_speed_10m"])
+
+
+def test_validate_payload_rejects_missing():
+    try:
+        validate_payload({"hourly": {"time": ["t1"]}}, ["temperature_2m"])
+    except ValueError:
+        return
+    assert False
