@@ -1,0 +1,26 @@
+# Data Contract: Variant 02 (Open-Meteo / Санкт-Петербург)
+
+## 1. Источник данных (Extract Stage)
+* **API Endpoint**: `https://api.example.com/v1/forecast` (Open-Meteo Forecast API)
+* **Метод**: `GET`
+* **Сущность**: Санкт-Петербург (`city_id`: `RU_LED`, `lat`: 59.9311, `lon`: 30.3609)
+* **Формат ответа**: JSON (списки почасовых измерений в объекте `hourly`)
+
+## 2. Схема целевой таблицы (Normalized Schema)
+
+| Имя поля | Тип | Описание | Ограничения |
+| :--- | :--- | :--- | :--- |
+| `ts` | `timestamp` | Дата-время измерения (Europe/Moscow) | NOT NULL, монотонно возрастает |
+| `temperature_2m` | `float` | Температура на высоте 2 м (°C) | Diapason: [-80.0, +60.0] |
+| `relative_humidity_2m` | `float` | Относительная влажность (%) | Diapason: [0.0, 100.0] |
+| `precipitation` | `float` | Осадки (мм) | `>= 0.0` |
+| `wind_speed_10m` | `float` | Скорость ветра на 10 м (км/ч) | `>= 0.0` |
+| `city_id` | `string` | Идентификатор города | NOT NULL, Значение = `'RU_LED'` |
+
+## 3. Правила качества данных (Data Quality Rules)
+* **Уникальность**: Первичный ключ `(city_id, ts)` не содержит дубликатов.
+* **Полнота**: Поле `ts` не содержит пропусков (`NULL`).
+* **Валидация диапазонов**: 
+  * Температура в пределах `-80 <= temperature_2m <= 60`.
+  * Влажность в пределах `0 <= relative_humidity_2m <= 100`.
+  * Осадки `precipitation >= 0`.
